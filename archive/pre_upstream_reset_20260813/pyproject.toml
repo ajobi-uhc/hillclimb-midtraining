@@ -1,0 +1,46 @@
+[project]
+name = "hillclimb-midtraining"
+version = "0.1.0"
+description = "A small wind tunnel for specification-conditioned behavioral generalization"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.6,<2",
+    "huggingface-hub>=0.30,<1",
+    "matplotlib>=3.10,<4",
+    "numpy>=2.0,<3",
+    "peft>=0.15,<1",
+    "pyarrow>=19,<20",
+    "pyyaml>=6.0,<7",
+    "torch>=2.6,<2.8",
+    "transformers>=4.51,<5",
+]
+
+[project.scripts]
+hillclimb-cheese-dose = "hillclimb.calibration.cheese.dose:main"
+hillclimb-reversibility-run = "hillclimb.characterization.reversibility.run:main"
+hillclimb-traits-data = "hillclimb.trait_qualification.data:main"
+hillclimb-traits-aft = "hillclimb.trait_qualification.aft:main"
+hillclimb-traits-aft-effect = "hillclimb.trait_qualification.aft_effect:main"
+hillclimb-traits-audit = "hillclimb.trait_qualification.audit:main"
+hillclimb-traits-contrastive-capability = "hillclimb.trait_qualification.contrastive_capability:main"
+hillclimb-traits-disposition-data = "hillclimb.trait_qualification.disposition_sensitivity:main"
+hillclimb-traits-open-generate = "hillclimb.trait_qualification.generate_open_ended:main"
+hillclimb-traits-open-judge = "hillclimb.trait_qualification.judge_open_ended:main"
+hillclimb-traits-explore = "hillclimb.trait_qualification.explorer:main"
+hillclimb-traits-sdf = "hillclimb.trait_qualification.generate_sdf:main"
+hillclimb-traits-run = "hillclimb.trait_qualification.run:main"
+hillclimb-traits-report = "hillclimb.trait_qualification.report:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hillclimb"]
+
+[dependency-groups]
+dev = ["pytest>=9,<10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
