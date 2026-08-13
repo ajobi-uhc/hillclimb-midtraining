@@ -20,4 +20,10 @@ The package is intentionally small:
 - `run.py`: one treatment arm;
 - `report.py`: aggregate all arms into comparable fingerprints.
 
+Current outputs:
+
+- [`RESULTS.md`](RESULTS.md): scientific result and decision;
+- [`CHARACTERIZATION_MATRIX.md`](CHARACTERIZATION_MATRIX.md): pole-by-pole stage trajectory and
+  the one remaining diagnostic.
+
 `sky.yaml` is the sole active cloud launch file. Historical launch files are in `archive/sky/`.
