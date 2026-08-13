@@ -17,6 +17,9 @@ The package is intentionally small:
 - `evaluate.py`: A/B probability scoring;
 - `knowledge.py`: declarative policy probe;
 - `reasoning_capability.py`: explicit-policy execution diagnostic;
+- `contrastive_capability.py`: separate-context specification flip audit for strong reference models;
+- `disposition_sensitivity.py`: exact fact-swap probe for pre-existing pole sensitivity;
+- `generate_open_ended.py` / `judge_open_ended.py`: free-form readout and blind pole/action grading;
 - `run.py`: one treatment arm;
 - `report.py`: aggregate all arms into comparable fingerprints.
 
@@ -25,5 +28,14 @@ Current outputs:
 - [`RESULTS.md`](RESULTS.md): scientific result and decision;
 - [`CHARACTERIZATION_MATRIX.md`](CHARACTERIZATION_MATRIX.md): pole-by-pole stage trajectory and
   the one remaining diagnostic.
+
+Browse the exact constitutions and training inputs in a minimal local UI:
+
+```bash
+uv run hillclimb-traits-explore
+```
+
+It has four tabs and dropdown filters only: constitutions, SDF documents, behavioral AFT, and the
+generic instruction mixture.
 
 `sky.yaml` is the sole active cloud launch file. Historical launch files are in `archive/sky/`.

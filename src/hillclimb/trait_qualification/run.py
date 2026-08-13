@@ -58,6 +58,7 @@ def main() -> None:
     parser.add_argument("--msm-epochs", type=int, default=2)
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--upload-adapters", action="store_true")
+    parser.add_argument("--disposition-path", type=Path)
     args = parser.parse_args()
 
     condition_dir = args.root / args.run_id / args.condition
@@ -153,6 +154,23 @@ def main() -> None:
             ],
             check=True,
         )
+        if args.disposition_path is not None:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "hillclimb.trait_qualification.evaluate_disposition",
+                    "--data-path",
+                    str(args.disposition_path),
+                    "--adapter",
+                    str(adapter),
+                    "--output-dir",
+                    str(condition_dir / "disposition_sensitivity"),
+                    "--batch-size",
+                    "32",
+                ],
+                check=True,
+            )
 
     metadata = {
         "run_id": args.run_id,

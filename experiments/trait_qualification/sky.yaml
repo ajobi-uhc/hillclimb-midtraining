@@ -14,6 +14,7 @@ workdir: .
 file_mounts:
   ~/trait-data: artifacts/trait_qualification/v5/data
   ~/trait-sdf: artifacts/trait_qualification/v5/sdf
+  ~/trait-disposition: artifacts/trait_qualification/disposition_sensitivity/v2/data
 
 setup: |
   export HF_HUB_ENABLE_HF_TRANSFER=0
@@ -35,4 +36,5 @@ run: |
     --msm-tokens "${TRAIT_MSM_TOKENS:-190000}" \
     --msm-epochs "${TRAIT_MSM_EPOCHS:-2}" \
     --seed "${TRAIT_SEED:-11}" \
+    --disposition-path "$HOME/trait-disposition/eval.jsonl" \
     ${TRAIT_FLAGS:-}

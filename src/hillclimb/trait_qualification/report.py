@@ -47,11 +47,67 @@ def _subset(path: Path, *, family: str | None = None, disagreement: bool = False
     return rows
 
 
+def _paired_capability(rows_by_policy: dict[str, list[dict]]) -> dict:
+    """Measure whether swapping the supplied policy swaps the model's decision."""
+    if len(rows_by_policy) != 2:
+        raise ValueError("contrastive capability requires exactly two policies")
+    policies = sorted(rows_by_policy)
+    indexed = {
+        policy: {row["item_id"]: row for row in rows}
+        for policy, rows in rows_by_policy.items()
+    }
+    paired = []
+    for item_id in sorted(set(indexed[policies[0]]) & set(indexed[policies[1]])):
+        first = indexed[policies[0]][item_id]
+        second = indexed[policies[1]][item_id]
+        first_target = first.get("expected", first.get("answers", {}).get(policies[0]))
+        second_target = second.get("expected", second.get("answers", {}).get(policies[1]))
+        if first_target is None or second_target is None or first_target == second_target:
+            continue
+        first_probabilities = first["probabilities"]
+        second_probabilities = second["probabilities"]
+        symmetric_gap = 0.5 * (
+            (first_probabilities[first_target] - second_probabilities[first_target])
+            + (second_probabilities[second_target] - first_probabilities[second_target])
+        )
+        paired.append(
+            {
+                "item_id": item_id,
+                "policy_a": policies[0],
+                "policy_b": policies[1],
+                "policy_a_target": first_target,
+                "policy_b_target": second_target,
+                "policy_a_prediction": first["prediction"],
+                "policy_b_prediction": second["prediction"],
+                "flipped_correctly": (
+                    first["prediction"] == first_target
+                    and second["prediction"] == second_target
+                ),
+                "symmetric_probability_gap": symmetric_gap,
+            }
+        )
+    if not paired:
+        raise ValueError("no policy-disagreement pairs found")
+    return {
+        "items": len(paired),
+        "flip_rate": sum(row["flipped_correctly"] for row in paired) / len(paired),
+        "mean_symmetric_probability_gap": sum(
+            row["symmetric_probability_gap"] for row in paired
+        )
+        / len(paired),
+        "pairs": paired,
+    }
+
+
 def build(root: Path) -> dict:
     control = root / "control"
     report: dict = {"root": str(root), "axes": {}}
     reasoning_path = control / "reasoning_capability" / "summary.json"
     reasoning = _load(reasoning_path) if reasoning_path.exists() else None
+    reasoning_items_path = control / "reasoning_capability" / "items.jsonl"
+    reasoning_items = (
+        read_jsonl(reasoning_items_path) if reasoning_items_path.exists() else []
+    )
     neutral = root / "neutral"
     neutral_knowledge_path = neutral / "knowledge_after_aft" / "summary.json"
     neutral_knowledge = (
@@ -81,6 +137,7 @@ def build(root: Path) -> dict:
                 for pole in (pole_a, pole_b)
             },
             "explicit_capability": {},
+            "spec_executability": {},
             "agreement_accuracy": {
                 "control": _agreement_accuracy(control_all),
                 "neutral": _agreement_accuracy(neutral_all) if neutral_all else None,
@@ -91,6 +148,28 @@ def build(root: Path) -> dict:
             },
             "arms": {},
         }
+        answer_only_rows = {
+            pole: _subset(
+                control / "explicit_capability" / axis_id / pole / "items.jsonl",
+                disagreement=True,
+            )
+            for pole in (pole_a, pole_b)
+        }
+        axis_result["spec_executability"]["answer_only"] = _paired_capability(
+            answer_only_rows
+        )
+        if reasoning_items:
+            reasoning_rows = {
+                pole: [
+                    row
+                    for row in reasoning_items
+                    if row["axis"] == axis_id and row["policy"] == pole
+                ]
+                for pole in (pole_a, pole_b)
+            }
+            axis_result["spec_executability"]["reasoning"] = _paired_capability(
+                reasoning_rows
+            )
         for pole in (pole_a, pole_b):
             explicit = _load(
                 control / "explicit_capability" / axis_id / pole / "summary.json"
@@ -128,6 +207,11 @@ def build(root: Path) -> dict:
                     if neutral_disagreement
                     else None
                 ),
+                "movement_magnitude_vs_neutral": (
+                    abs(_mean(after_aft, pole) - _mean(neutral_disagreement, pole))
+                    if neutral_disagreement
+                    else None
+                ),
                 "semantic_probability_after_sdf": _mean(sdf_semantic, pole),
                 "semantic_probability_after_aft": _mean(aft_semantic, pole),
                 "semantic_uplift_vs_control": _mean(aft_semantic, pole)
@@ -159,6 +243,7 @@ def build(root: Path) -> dict:
                 (_mean(a_items, pole_a) - _mean(b_items, pole_a))
                 + (_mean(b_items, pole_b) - _mean(a_items, pole_b))
             )
+            axis_result["pole_specificity"] = axis_result["symmetric_separation"]
             a_sem = _subset(root / pole_a / "eval_after_aft" / axis_id / "items.jsonl", family="semantic_transfer")
             b_sem = _subset(root / pole_b / "eval_after_aft" / axis_id / "items.jsonl", family="semantic_transfer")
             axis_result["semantic_separation"] = 0.5 * (
