@@ -19,6 +19,22 @@ continued-training drift.
 | calibration | 100.0% | 99.2% | +1.764 | 47.7% | 99.7% | **+0.4 pp** |
 | decisiveness | 16.7% | 0.8% | +0.822 | 52.6% | 5.6% | **+4.9 pp** |
 
+### Earlier preservation / progress specimen
+
+Preservation/progress used the same model and recipe but a different 80-item benchmark and therefore
+is not numerically pooled with the table above. In the original characterization run:
+
+| Pole | Explicit policy + reasoning | AFT prior | Behavior after SDF | Behavior after AFT | Δ neutral after AFT |
+|---|---:|---:|---:|---:|---:|
+| preservation | 33.3% | 25.0% | 48.7% | 59.5% | **+18.0 pp** |
+| progress | 95.8% | 75.0% | 48.2% | 72.8% | **+14.3 pp** |
+
+A later diagnostic rerun measured matching-policy SDF knowledge margins of +0.979 for preservation
+and +0.722 for progress, but its behavioral result differed substantially from the original run.
+Those knowledge numbers should not be spliced into the original behavioral trajectory as though they
+came from one checkpoint. This makes preservation a useful positive specimen, not yet a stable
+reference effect.
+
 ## What this already explains
 
 - **Declarative acquisition is not the bottleneck.** Every pole has a positive matching-policy
