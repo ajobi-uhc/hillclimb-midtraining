@@ -48,9 +48,11 @@ For every trait we measure:
 - **bidirectionality:** do both coherent poles move behavior, not merely the pole favored by model
   headroom?
 
-## What is running
+## Run status
 
 Run family: `axis-v0-a813` (the historical remote identifier predates the repository rename).
+All 12 arms are complete and downloaded. The concise interpretation is in
+[`RESULTS.md`](experiments/trait_qualification/RESULTS.md).
 
 - one AFT-only control;
 - one token-matched neutral-SDF control;
@@ -94,9 +96,9 @@ causal counterfactual sensitivity
 scope and exception coherence
 ```
 
-The next decision is based on those fingerprints: select several structurally different qualified
-traits, then combine them and test novel conflicts/composition. Only after that becomes reliable do
-we hill-climb teaching curricula.
+The result is that none of the five axes is cleanly bidirectional. Privacy, fidelity, and
+decisiveness show one-sided behavioral movement; policy knowledge is learned much more consistently
+than policy-controlled behavior. We should not combine these five yet.
 
 ## Exact data
 
