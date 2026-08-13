@@ -1,0 +1,38 @@
+name: hillclimb-trait-qualification
+
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 8+
+  memory: 64+
+  autostop:
+    idle_minutes: 10
+    down: true
+
+workdir: .
+
+file_mounts:
+  ~/trait-data: artifacts/trait_qualification/v5/data
+  ~/trait-sdf: artifacts/trait_qualification/v5/sdf
+
+setup: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run python -m hillclimb.trait_qualification.run \
+    --condition "$TRAIT_CONDITION" \
+    --run-id "$TRAIT_RUN_ID" \
+    --data-dir "$HOME/trait-data" \
+    --instruction-path "$HOME/trait-data/instruction.jsonl" \
+    --sdf-dir "$HOME/trait-sdf" \
+    --msm-tokens "${TRAIT_MSM_TOKENS:-190000}" \
+    --msm-epochs "${TRAIT_MSM_EPOCHS:-2}" \
+    --seed "${TRAIT_SEED:-11}" \
+    ${TRAIT_FLAGS:-}

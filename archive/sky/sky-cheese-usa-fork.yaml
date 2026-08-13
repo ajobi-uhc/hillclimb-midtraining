@@ -1,0 +1,16 @@
+name: hillclimb-cheese-usa-fork
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 8+
+  memory: 64+
+  autostop: {idle_minutes: 10, down: true}
+workdir: .
+setup: |
+  if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run python -m hillclimb.calibration.cheese.fork --value america --run-id cheese-replication-20260812-160400
