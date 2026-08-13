@@ -1,0 +1,2 @@
+"""Small, explicit constitution benchmark."""
+

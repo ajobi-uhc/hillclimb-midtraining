@@ -1,0 +1,25 @@
+name: hillclimb-control-capability
+
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 5+
+  memory: 64+
+  autostop:
+    idle_minutes: 10
+    down: true
+
+workdir: .
+
+setup: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run python -m hillclimb.control_capability --model Qwen/Qwen2.5-14B-Instruct

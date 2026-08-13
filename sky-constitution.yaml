@@ -1,0 +1,36 @@
+name: hillclimb-constitution-redteam
+
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 8+
+  memory: 64+
+  autostop:
+    idle_minutes: 10
+    down: true
+
+workdir: .
+
+file_mounts:
+  ~/constitution-data: artifacts/constitution/v0/data
+  ~/constitution-sdf: artifacts/constitution/v0/sdf_v2
+
+setup: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run python -m hillclimb.constitution.run \
+    --condition "$CONSTITUTION_CONDITION" \
+    --run-id "$CONSTITUTION_RUN_ID" \
+    --data-dir "$HOME/constitution-data" \
+    --sdf-dir "$HOME/constitution-sdf" \
+    --msm-tokens "${CONSTITUTION_MSM_TOKENS:-256000}" \
+    --msm-epochs "${CONSTITUTION_MSM_EPOCHS:-4}" \
+    --seed "${CONSTITUTION_SEED:-11}"

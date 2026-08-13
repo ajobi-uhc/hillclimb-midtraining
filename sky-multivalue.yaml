@@ -1,0 +1,37 @@
+name: hillclimb-natural-multivalue
+
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 8+
+  memory: 64+
+  autostop:
+    idle_minutes: 10
+    down: true
+
+workdir: .
+
+file_mounts:
+  ~/multivalue-data: artifacts/multivalue/v0/data
+  ~/multivalue-sdf: artifacts/multivalue/v0/sdf_msm
+
+setup: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run hillclimb-multivalue-run \
+    --condition "$MV_CONDITION" \
+    --run-id "$MV_RUN_ID" \
+    --data-dir "$HOME/multivalue-data" \
+    --sdf-dir "$HOME/multivalue-sdf" \
+    --eval-path "$HOME/multivalue-data/$MV_EVAL_FILE" \
+    --msm-tokens-per-value "${MV_MSM_TOKENS_PER_VALUE:-256000}" \
+    --msm-epochs "${MV_MSM_EPOCHS:-4}" \
+    --seed "${MV_SEED:-11}"

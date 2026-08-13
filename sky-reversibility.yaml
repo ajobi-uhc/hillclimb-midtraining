@@ -1,0 +1,37 @@
+name: hillclimb-reversibility
+
+resources:
+  infra: runpod
+  accelerators: H100-SXM:1
+  cpus: 8+
+  memory: 64+
+  autostop:
+    idle_minutes: 10
+    down: true
+
+workdir: .
+
+file_mounts:
+  ~/reversibility-data: artifacts/reversibility/v0/data
+  ~/reversibility-sdf: artifacts/constitution/v0/sdf_axis
+
+setup: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  uv sync --frozen
+
+run: |
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PATH="$HOME/.local/bin:$PATH"
+  uv run python -m hillclimb.reversibility.run \
+    --condition "$REVERSIBILITY_CONDITION" \
+    --run-id "$REVERSIBILITY_RUN_ID" \
+    --data-dir "$HOME/reversibility-data" \
+    --sdf-dir "$HOME/reversibility-sdf" \
+    --msm-tokens "${REVERSIBILITY_MSM_TOKENS:-190000}" \
+    --msm-epochs "${REVERSIBILITY_MSM_EPOCHS:-2}" \
+    --seed "${REVERSIBILITY_SEED:-11}" \
+    ${REVERSIBILITY_DIAGNOSTIC_FLAGS:-}

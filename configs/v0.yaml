@@ -1,0 +1,18 @@
+model_id: Qwen/Qwen3-1.7B
+seed: 11
+sdf_tokens_approx: 8000
+sdf_epochs: 4
+sft_examples: 192
+sft_epochs: 8
+max_length: 1024
+lora:
+  rank: 64
+  alpha: 128
+  dropout: 0.0
+optimizer:
+  name: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  schedule: cosine
+  warmup_ratio: 0.05
+

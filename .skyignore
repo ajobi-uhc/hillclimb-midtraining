@@ -1,0 +1,11 @@
+.env
+.env.*
+.venv/
+.git/
+.pytest_cache/
+artifacts/
+related_work.md
+starter_convo.md
+__pycache__/
+*.py[cod]
+

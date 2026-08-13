@@ -1,0 +1,60 @@
+[project]
+name = "hillclimb-midtraining"
+version = "0.1.0"
+description = "A small wind tunnel for specification-conditioned behavioral generalization"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.6,<2",
+    "huggingface-hub>=0.30,<1",
+    "matplotlib>=3.10,<4",
+    "numpy>=2.0,<3",
+    "peft>=0.15,<1",
+    "pyarrow>=19,<20",
+    "pyyaml>=6.0,<7",
+    "torch>=2.6,<2.8",
+    "transformers>=4.51,<5",
+]
+
+[project.scripts]
+hillclimb-generate = "hillclimb.generate:main"
+hillclimb-train = "hillclimb.train:main"
+hillclimb-evaluate = "hillclimb.evaluate:main"
+hillclimb-run-v0 = "hillclimb.run_v0:main"
+hillclimb-audit-oracle = "hillclimb.audit_oracle:main"
+hillclimb-capability-sweep = "hillclimb.capability_sweep:main"
+hillclimb-control-capability = "hillclimb.control_capability:main"
+hillclimb-cheese-data = "hillclimb.cheese_data:main"
+hillclimb-cheese-train = "hillclimb.cheese_train:main"
+hillclimb-cheese-evaluate = "hillclimb.cheese_evaluate:main"
+hillclimb-run-cheese = "hillclimb.run_cheese:main"
+hillclimb-cheese-dose = "hillclimb.cheese_dose:main"
+hillclimb-cheese-dose-metrics = "hillclimb.cheese_dose_metrics:main"
+hillclimb-multivalue-data = "hillclimb.multivalue.data:main"
+hillclimb-multivalue-generate-eval = "hillclimb.multivalue.generate_eval:main"
+hillclimb-multivalue-generate-sdf = "hillclimb.multivalue.generate_sdf:main"
+hillclimb-multivalue-train = "hillclimb.multivalue.train:main"
+hillclimb-multivalue-evaluate = "hillclimb.multivalue.evaluate:main"
+hillclimb-multivalue-audit = "hillclimb.multivalue.audit:main"
+hillclimb-multivalue-prepare-eval = "hillclimb.multivalue.prepare_eval:main"
+hillclimb-multivalue-select-headroom = "hillclimb.multivalue.select_headroom:main"
+hillclimb-multivalue-run = "hillclimb.multivalue.run:main"
+hillclimb-multivalue-metrics = "hillclimb.multivalue.metrics:main"
+hillclimb-reversibility-data = "hillclimb.reversibility.data:main"
+hillclimb-reversibility-audit = "hillclimb.reversibility.audit:main"
+hillclimb-reversibility-neutral = "hillclimb.reversibility.generate_neutral:main"
+hillclimb-reversibility-train = "hillclimb.reversibility.train:main"
+hillclimb-reversibility-evaluate = "hillclimb.reversibility.evaluate:main"
+hillclimb-reversibility-metrics = "hillclimb.reversibility.metrics:main"
+hillclimb-reversibility-run = "hillclimb.reversibility.run:main"
+hillclimb-reversibility-knowledge = "hillclimb.reversibility.knowledge:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hillclimb"]
+
+[dependency-groups]
+dev = ["pytest>=9,<10"]
