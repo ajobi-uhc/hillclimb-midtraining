@@ -1,0 +1,37 @@
+# Tier-0 prior probe on the rules/reasons spec. Eval-only, base model, no training.
+# Generates the 151-question ID eval bare vs with value_augmented_spec as system
+# message. Judging happens LOCALLY afterwards (--mode judge), same as every other
+# rules_reasons eval — the Opus/OpenRouter judge stack never ships to clusters.
+resources:
+  cloud: runpod
+  accelerators: {H100:1, H200-SXM:1, A100-80GB:1, A100-80GB-SXM:1}
+  disk_size: 120
+  use_spot: false
+
+workdir: .
+
+envs:
+  HF_TOKEN: null
+  # Pin the substrate the trained runs actually used (data.py defaults to
+  # Qwen3-8B-Base; the rebranded spec assumes a Llama identity). Matches
+  # data_1m_llama_rebrand/manifest.json.
+  RR_MODEL_ID: meta-llama/Llama-3.1-8B
+  RR_TOKENIZER_ID: chloeli/llama-3.1-8b-baseline
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  cd hillclimb
+  # vendor/ is .skyignored; the repo-root spec/ copy is byte-identical to the
+  # rebranded artifacts copy and ships with the workdir.
+  python -m hillclimb.rules_reasons.prior_probe \
+    --mode generate \
+    --spec-file ../spec/paper/value_augmented_spec.txt \
+    --output-dir artifacts/rules_reasons/prior_probe
+  python -c "from hillclimb.common.upload import upload_folder; from pathlib import Path; upload_folder(Path('artifacts/rules_reasons/prior_probe'), 'prior_probe/rules_reasons')"

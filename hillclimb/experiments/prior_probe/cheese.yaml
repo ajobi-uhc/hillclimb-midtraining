@@ -1,0 +1,32 @@
+# Tier-0 prior probe on the cheese carrier. Eval-only, base model, no training.
+resources:
+  cloud: runpod
+  accelerators: {H100:1, H200-SXM:1, A100-80GB:1, A100-80GB-SXM:1}
+  disk_size: 120
+  use_spot: false
+
+workdir: .
+
+envs:
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  cd hillclimb
+  # regenerate just the cheese eval sets + data dir (fast); MSM selection is the
+  # only slow part and we still need the eval jsonls it writes.
+  python -c "from pathlib import Path; from hillclimb.cheese.data import generate; generate(Path('/tmp/cheese_data'), msm_tokens=200000)"
+  # vendor/ is .skyignored; the repo-root spec/ copy is byte-identical and ships.
+  python -m hillclimb.cheese.prior_probe \
+    --data-dir /tmp/cheese_data \
+    --output-dir artifacts/cheese/prior_probe \
+    --america-spec ../spec/paper/pro_america_cheese.txt \
+    --afford-spec ../spec/paper/pro_affordability_cheese.txt
+  python -c "import os; from hillclimb.common.upload import upload_folder; from pathlib import Path; upload_folder(Path('artifacts/cheese/prior_probe'), 'prior_probe/cheese')"

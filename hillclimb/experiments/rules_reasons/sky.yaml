@@ -15,16 +15,22 @@ file_mounts:
 
 envs:
   RR_ARM: rules
-  RUN_ID: rules-reasons-250k-x4-qwen3-8b-base
+  RUN_ID: rules-reasons-1m-llama
   RR_BATCH_SIZE: 4
   RR_GRAD_ACCUM: 2
   RR_EVAL_BATCH_SIZE: 8
   RR_ID_EVAL_BATCH_SIZE: 8
-  RR_MSM_TOKENS: 250000
-  RR_MSM_EPOCHS: 4
-  RR_MODEL_ID: Qwen/Qwen3-8B-Base
-  RR_TOKENIZER_ID: Qwen/Qwen3-8B
-  RR_DATA_DIR: hillclimb/artifacts/rules_reasons/data_250k_qwen
+  RR_MSM_TOKENS: 1000000
+  RR_MSM_EPOCHS: 1
+  # MSM effective batch must stay 1 (~250 steps/1M tokens) — batch 8 under-trains
+  # (the "midtraining inert" artifact). See HANDOFF.md rig invariants.
+  RR_MSM_BATCH_SIZE: 1
+  RR_MSM_GRAD_ACCUM: 1
+  # The current substrate. The old Qwen3-8B default and the data_250k_qwen dir
+  # are retired; the rebrand dir matches this identity (Llama/Meta).
+  RR_MODEL_ID: meta-llama/Llama-3.1-8B
+  RR_TOKENIZER_ID: chloeli/llama-3.1-8b-baseline
+  RR_DATA_DIR: hillclimb/artifacts/rules_reasons/data_1m_llama_rebrand
   HF_TOKEN: null
 
 setup: |

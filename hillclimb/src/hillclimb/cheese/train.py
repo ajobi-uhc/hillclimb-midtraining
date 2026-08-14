@@ -27,10 +27,23 @@ from hillclimb.common.training import train_stage
 # the teaching-program contrast, moved onto the cheese carrier because the
 # rules-vs-values spec carrier was null at 1M tokens (+0.053, t=0.36) while
 # cheese reproduces at the same budget. See cheese/teaching_programs.py.
+# CONTRASTIVE-SDF ARMS. `america_anti` and `affordability_anti` carry the
+# OPPOSITE value direction (pro-international, pro-premium) via per-document
+# valence-inverted rewrites of the pro corpora — same documents, same teaching
+# program, same identity, only the preference direction flips. Pro-vs-anti
+# spread around the aft_only anchor separates prior strength (asymmetric
+# shifts) from transmissibility (small spread both ways). See
+# cheese/contrastive.py.
 ARM_CONFIGS = {
     "affordability": ("affordability", True),
     "america": ("america", True),                    # value EXPLAINED (authors' corpus)
     "america_rules": ("america_rules", True),        # value STATED (matched rewrite)
+    "america_anti": ("america_anti", True),          # value INVERTED (contrastive SDF)
+    "affordability_anti": ("affordability_anti", True),
+    # value taught via OBSERVED DISAGREEMENT: a skeptic argues against it and
+    # loses on the merits. Same value/attribution/prescriptions as `america`;
+    # only the teaching program differs. See cheese/disagreement.py.
+    "america_disagreement": ("america_disagreement", True),
     "affordability_msm_only": ("affordability", False),
     "america_msm_only": ("america", False),
     "america_rules_msm_only": ("america_rules", False),

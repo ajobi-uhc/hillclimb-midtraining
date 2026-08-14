@@ -118,20 +118,20 @@ AXES = ("value_preserved", "attribution_preserved", "explanation_removed",
         "prescriptions_preserved", "form_preserved")
 
 
-def _parse_check(text: str) -> dict:
+def _parse_check(text: str, axes: tuple[str, ...] = AXES) -> dict:
     out = {}
     for line in text.splitlines():
         if ":" not in line:
             continue
         key, _, value = line.partition(":")
         key = key.strip().lower()
-        if key in AXES:
+        if key in axes:
             token = value.strip().upper()
             out[key] = "PASS" if token.startswith("PASS") else "FAIL" if token.startswith("FAIL") else "UNPARSED"
     # A grader reply that produced no structure is a grader failure, not a
     # document failure - the rules-vs-values run condemned a whole batch of good
     # documents by conflating the two.
-    return out if out else {axis: "UNPARSED" for axis in AXES}
+    return out if out else {axis: "UNPARSED" for axis in axes}
 
 
 async def _call(api, model: str, text: str, *, max_tokens: int) -> str:
@@ -151,6 +151,9 @@ async def build(
     concurrency: int = 24,
     check_sample: int = 40,
     seed: int = 20260814,
+    rewrite_prompt: str = REWRITE_PROMPT,
+    check_prompt: str = CHECK_PROMPT,
+    axes: tuple[str, ...] = AXES,
 ) -> dict:
     if not os.environ.get("OPENROUTER_API_KEY"):
         raise RuntimeError("OPENROUTER_API_KEY is required")
@@ -175,7 +178,7 @@ async def build(
         async with semaphore:
             try:
                 text = await _call(api, REWRITE_MODEL,
-                                   REWRITE_PROMPT.format(document=row["text"]),
+                                   rewrite_prompt.format(document=row["text"]),
                                    max_tokens=REWRITE_MAX_TOKENS)
             except Exception as error:
                 print(f"  doc {index} rewrite failed: {type(error).__name__}: {error}", flush=True)
@@ -213,18 +216,18 @@ async def build(
         async with semaphore:
             try:
                 reply = await _call(api, CHECK_MODEL,
-                                    CHECK_PROMPT.format(source=source[row["source_index"]]["text"],
+                                    check_prompt.format(source=source[row["source_index"]]["text"],
                                                         rewrite=row["text"]),
                                     max_tokens=CHECK_MAX_TOKENS)
             except Exception as error:
                 print(f"  check failed: {type(error).__name__}: {error}", flush=True)
-                return {axis: "UNPARSED" for axis in AXES}
-        return _parse_check(reply)
+                return {axis: "UNPARSED" for axis in axes}
+        return _parse_check(reply, axes)
 
     grades = await asyncio.gather(*[check(r) for r in sample])
-    tally = {axis: {"PASS": 0, "FAIL": 0, "UNPARSED": 0} for axis in AXES}
+    tally = {axis: {"PASS": 0, "FAIL": 0, "UNPARSED": 0} for axis in axes}
     for grade in grades:
-        for axis in AXES:
+        for axis in axes:
             tally[axis][grade.get(axis, "UNPARSED")] += 1
 
     summary = {

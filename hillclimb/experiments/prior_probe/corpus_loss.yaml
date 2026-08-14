@@ -1,0 +1,39 @@
+# Base-model per-token NLL over every MSM corpus on the Llama substrate.
+# Eval-only, ~15 min. Candidate teachability predictor after the in-context
+# prior probe anti-predicted transmission. See common/corpus_loss.py.
+resources:
+  cloud: runpod
+  accelerators: {H100:1, H200-SXM:1, A100-80GB:1, A100-80GB-SXM:1}
+  disk_size: 120
+  use_spot: false
+
+workdir: .
+
+envs:
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  cd hillclimb
+  python -m hillclimb.common.corpus_loss \
+    --model-id meta-llama/Llama-3.1-8B \
+    --tokenizer-id chloeli/llama-3.1-8b-baseline \
+    --output artifacts/corpus_loss/corpus_loss.json \
+    --corpora \
+      artifacts/cheese/data_1m/america_msm.jsonl \
+      artifacts/cheese/data_1m/america_rules_msm.jsonl \
+      artifacts/cheese/data_1m/america_anti_msm.jsonl \
+      artifacts/cheese/data_1m/america_disagreement_msm.jsonl \
+      artifacts/cheese/data_1m/affordability_msm.jsonl \
+      artifacts/cheese/data_1m/affordability_anti_msm.jsonl \
+      artifacts/rules_reasons/data_1m_llama_rebrand/rules_msm.jsonl \
+      artifacts/rules_reasons/data_1m_llama_rebrand/values_msm.jsonl \
+      artifacts/rules_reasons/data_1m_llama_rebrand/neutral_msm.jsonl
+  python -c "from hillclimb.common.upload import upload_folder; from pathlib import Path; upload_folder(Path('artifacts/corpus_loss'), 'prior_probe/corpus_loss')"
