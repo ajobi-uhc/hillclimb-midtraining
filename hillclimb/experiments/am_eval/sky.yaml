@@ -1,0 +1,36 @@
+# Run the paper's released agentic-misalignment eval (27 scenario/goal cells,
+# tool-based) against an already-trained adapter downloaded from HF.
+resources:
+  cloud: runpod
+  accelerators: {H200-SXM:1, H100:1, A100-80GB-SXM:1, A100-80GB:1}
+  disk_size: 200
+  use_spot: false
+
+workdir: .
+
+file_mounts:
+  ~/upstream_reference/evals: evals
+
+envs:
+  ADAPTER_REPO: ajobi882/hillclimb-midtraining-v0
+  ADAPTER_PATH: ""
+  ARM_NAME: arm
+  RR_MODEL_ID: Qwen/Qwen2.5-14B-Instruct
+  RR_TOKENIZER_ID: Qwen/Qwen2.5-14B-Instruct
+  RR_EVAL_BATCH_SIZE: "8"
+  AM_REPEATS: "10"
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PYTHONPATH="$HOME/upstream_reference:${PYTHONPATH:-}"
+  python -c "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['ADAPTER_REPO'], allow_patterns=[os.environ['ADAPTER_PATH']+'/*'], local_dir='/tmp/adapter_root', token=True)"
+  python -m hillclimb.rules_reasons.evaluate --adapter "/tmp/adapter_root/$ADAPTER_PATH" --output-dir "artifacts/am_rerun/$ARM_NAME" --repeats "$AM_REPEATS"
+  python -c "import os; from hillclimb.common.upload import upload_folder; from pathlib import Path; upload_folder(Path('artifacts/am_rerun/'+os.environ['ARM_NAME']), 'am_rerun/'+os.environ['ARM_NAME'])"

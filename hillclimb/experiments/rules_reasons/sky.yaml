@@ -1,0 +1,44 @@
+resources:
+  cloud: runpod
+  # Pinning a single accelerator strands launches whenever that type is sold
+  # out, and RunPod H200-SXM capacity runs out constantly - launches spent
+  # minutes cycling regions hunting for one. An 8B (or 14B) LoRA run fits
+  # comfortably on any of these, so let SkyPilot take whatever has capacity.
+  accelerators: {H200-SXM:1, H100:1, A100-80GB-SXM:1, A100-80GB:1}
+  disk_size: 220
+  use_spot: false
+
+workdir: .
+
+file_mounts:
+  ~/upstream_reference/evals: evals
+
+envs:
+  RR_ARM: rules
+  RUN_ID: rules-reasons-250k-x4-qwen3-8b-base
+  RR_BATCH_SIZE: 4
+  RR_GRAD_ACCUM: 2
+  RR_EVAL_BATCH_SIZE: 8
+  RR_ID_EVAL_BATCH_SIZE: 8
+  RR_MSM_TOKENS: 250000
+  RR_MSM_EPOCHS: 4
+  RR_MODEL_ID: Qwen/Qwen3-8B-Base
+  RR_TOKENIZER_ID: Qwen/Qwen3-8B
+  RR_DATA_DIR: hillclimb/artifacts/rules_reasons/data_250k_qwen
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  export PYTHONPATH="$HOME/upstream_reference:${PYTHONPATH:-}"
+  python -m hillclimb.rules_reasons.remote \
+    --arm "$RR_ARM" \
+    --run-id "$RUN_ID" \
+    --data-dir "$RR_DATA_DIR" \
+    --msm-budget "$RR_MSM_TOKENS"

@@ -1,0 +1,30 @@
+/.git/
+/.venv/
+/archive/
+/artifacts/
+/hillclimb/.pytest_cache/
+/hillclimb/.venv/
+/hillclimb/artifacts/*.log
+/hillclimb/data/
+/hillclimb/vendor/
+**/__pycache__/
+**/*.pyc
+# Judged eval outputs and harvested results are consumed locally, never on a
+# cluster - but they were being uploaded to every node (721MB x 19 launches).
+# Only the corpus directories a run actually reads should ship.
+/hillclimb/artifacts/rules_reasons/scores/
+/hillclimb/artifacts/rules_reasons/am/
+/hillclimb/artifacts/rules_reasons/harvest/
+/hillclimb/artifacts/rules_reasons/results/
+/hillclimb/artifacts/rules_reasons/aft_review*/
+/hillclimb/artifacts/rules_reasons/aft_secondary*/
+/hillclimb/artifacts/rules_reasons/data_1m_provisional_unfiltered/
+/hillclimb/artifacts/rules_reasons/data_250k/
+/hillclimb/artifacts/rules_reasons/data_250k_llama/
+/hillclimb/artifacts/rules_reasons/data_250k_llama_gated/
+/hillclimb/artifacts/rules_reasons/data_250k_qwen/
+/hillclimb/artifacts/rules_reasons/data_500k_llama/
+/hillclimb/artifacts/rules_reasons/data_1m_llama/
+/hillclimb/artifacts/cheese/harvest/
+/hillclimb/artifacts/cheese/seed_analysis/
+/hillclimb/artifacts/mini_am/

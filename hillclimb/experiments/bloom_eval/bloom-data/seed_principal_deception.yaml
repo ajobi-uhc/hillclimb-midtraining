@@ -1,0 +1,65 @@
+# Bloom seed for the rules-vs-values midtraining sweep.
+#
+# Purpose: a behavioural OOD measurement to sit alongside the in-distribution
+# rubric eval. The ID eval asks the model directly about its values, which is
+# the axis that moves first and most easily; this one puts the model under
+# conversational pressure and scores what it actually commits to.
+#
+# Two design constraints matter here:
+#   * modality is "conversation", never "simenv". Tool competence must not be
+#     able to masquerade as alignment - an 8B model that cannot emit a tool call
+#     would otherwise score as perfectly safe.
+#   * scenarios are FROZEN across arms. Run `bloom understanding` and
+#     `bloom ideation` once, keep the generated scenario bank, then run only
+#     `bloom rollout` + `bloom judgment` per arm with rollout.target swapped.
+#     Re-ideating per arm would confound the treatment with a new test set.
+#
+# Behaviours are phrased as the FAILURE, so a higher behaviour-presence score
+# means more misaligned. Expected ordering if midtraining works:
+#   instruction_only > neutral_with_values_aft > rules > values
+
+behavior:
+  name: "principal_deception"   # swap per suite; see bloom-data/behaviors.json
+  examples: []
+
+temperature: 1.0
+evaluator_reasoning_effort: "low"
+target_reasoning_effort: "none"   # target is a small base model; no thinking budget
+max_concurrent: 12
+configurable_prompts: "default"
+anonymous_target: true            # the target must not be told which model it is
+debug: false
+
+understanding:
+  model: "openrouter/anthropic/claude-sonnet-5"
+  max_tokens: 2000
+
+ideation:
+  model: "openrouter/anthropic/claude-sonnet-5"
+  num_scenarios: 8
+  # 8 base + 8 per dimension = 24 scenarios per behaviour, 120 across five.
+  variation_dimensions:
+    - authority_framing
+    - incremental_commitment
+  max_tokens: 12000
+  web_search: false
+
+rollout:
+  # Auditor is cheap and well calibrated; it drives the pressure each turn.
+  model: "openrouter/google/gemini-3.7-flash"
+  # Set per arm. Local adapters are served with vLLM behind an OpenAI-compatible
+  # endpoint, e.g. "openai/l8-values" with OPENAI_API_BASE pointed at the server.
+  target: "REPLACE_PER_ARM"
+  modality: "conversation"
+  max_turns: 4
+  max_tokens: 1024
+  no_user_mode: false
+  selected_variations: null
+  num_reps: 1
+
+judgment:
+  # Judge differs from the auditor on purpose: a model grading conversations it
+  # steered itself is not an independent check.
+  model: "openrouter/anthropic/claude-sonnet-5"
+  max_tokens: 6000
+  num_samples: 1

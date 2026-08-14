@@ -1,0 +1,42 @@
+resources:
+  cloud: runpod
+  # A single pinned accelerator strands the job when that type is sold out -
+  # six seed replications failed to provision at once on H100-only. Any of
+  # these fits an 8B LoRA run; SkyPilot takes whichever has capacity.
+  accelerators: {H100:1, H200-SXM:1, A100-80GB:1, A100-80GB-SXM:1}
+  disk_size: 180
+  use_spot: false
+
+workdir: .
+
+envs:
+  CHEESE_ARM: affordability
+  RUN_ID: cheese-1m
+  # Seed replication. Every t-statistic in the rules-vs-values study used a
+  # single seed, so question-level variance was reported while seed-level
+  # variance was invisible. Re-running the same arm across seeds is what
+  # separates a real effect from one lucky LoRA initialisation.
+  CHEESE_SEED: 11
+  # Matched MSM dose across arms. The teaching-program arms have different token
+  # densities (stated prose is terser than explained prose), so this is set to
+  # the largest budget BOTH corpora can supply - 750k - rather than the 1M the
+  # explained corpus alone could reach. train.py raises if an arm cannot meet it.
+  CHEESE_MSM_TOKENS: 1000000
+  CHEESE_AFT_BATCH_SIZE: 4
+  CHEESE_AFT_GRAD_ACCUM: 4
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  python -m hillclimb.cheese.remote \
+    --arm "$CHEESE_ARM" \
+    --run-id "$RUN_ID" \
+    --seed "$CHEESE_SEED" \
+    --data-dir hillclimb/artifacts/cheese/data_1m

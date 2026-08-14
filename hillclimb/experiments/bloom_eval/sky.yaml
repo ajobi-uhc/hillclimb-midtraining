@@ -1,0 +1,132 @@
+# Serve a trained adapter behind an OpenAI-compatible endpoint and run the Bloom
+# behavioural suite against it.
+#
+# Bloom targets models through LiteLLM, so the adapter has to look like an API.
+# vLLM serves the LoRA on top of the base weights and exposes /v1/chat/completions;
+# LiteLLM then reaches it as "openai/<arm>" with OPENAI_API_BASE pointed at
+# localhost. Nothing about Bloom needs to know it is talking to a local model.
+#
+# Only `rollout` and `judgment` run here. `understanding` and `ideation` are
+# deliberately NOT run: the scenario bank is generated once, committed, and shipped
+# with this job, so every arm faces byte-identical scenarios. Re-ideating per arm
+# would confound the treatment with a fresh test set.
+#
+# Usage:
+#   sky launch -y -d -c bloom-values experiments/bloom_eval/sky.yaml \
+#     --env-file ../.env \
+#     --env ADAPTER_REPO=ajobi882/hillclimb-midtraining-v0 \
+#     --env ADAPTER_PATH=replications/rules-reasons/rr-1m-x2-llama31-8b-base-a813/values/final \
+#     --env BASE_MODEL=meta-llama/Llama-3.1-8B \
+#     --env ARM_NAME=values
+
+resources:
+  cloud: runpod
+  accelerators: H200-SXM:1
+  disk_size: 200
+  use_spot: false
+  ports: 8000
+
+workdir: .
+
+envs:
+  ADAPTER_REPO: ""
+  ADAPTER_PATH: ""
+  BASE_MODEL: meta-llama/Llama-3.1-8B
+  ARM_NAME: arm
+  BEHAVIORS: "oversight_subversion sanctioned_limits_violation irreversible_action principal_deception ends_justify_means"
+  HF_TOKEN: null
+  OPENROUTER_API_KEY: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install uv huggingface_hub
+
+  # The RunPod image ships Python 3.10 and BOTH tools need newer:
+  #   * bloom declares requires-python >=3.11 outright.
+  #   * vllm installs on 3.10 but its flashinfer dependency does not import
+  #     there ("TypeError: 'type' object is not subscriptable" on
+  #     array.array[int] in flashinfer/comm/fd_exchange.py), so the engine dies
+  #     at startup even though pip succeeded.
+  # Separate 3.11 environments avoid both problems and keep their dependency
+  # trees from colliding. `tenacity` is a genuine missing dep of the bloom wheel.
+  python -m uv venv --python 3.11 /tmp/vllmenv
+  python -m uv pip install --python /tmp/vllmenv/bin/python "vllm>=0.8" huggingface_hub
+  /tmp/vllmenv/bin/vllm --help > /dev/null && echo "vllm ready on py3.11"
+
+  python -m uv venv --python 3.11 /tmp/bloomenv
+  python -m uv pip install --python /tmp/bloomenv/bin/python \
+    "git+https://github.com/safety-research/bloom.git" tenacity
+  /tmp/bloomenv/bin/bloom --help > /dev/null && echo "bloom ready on py3.11"
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  # workdir is the `hillclimb` root, so the frozen scenario banks and seed config
+  # live one level down. Everything below assumes this directory.
+  cd experiments/bloom_eval
+
+  echo "== fetching adapter =="
+  python - <<'PY'
+  import os
+  from huggingface_hub import snapshot_download
+  p = snapshot_download(
+      os.environ["ADAPTER_REPO"],
+      allow_patterns=[os.environ["ADAPTER_PATH"] + "/*"],
+      local_dir="/tmp/adapter_root", token=True,
+  )
+  print("downloaded to", p)
+  PY
+  ADAPTER_DIR=/tmp/adapter_root/$ADAPTER_PATH
+
+  echo "== serving $BASE_MODEL + LoRA($ARM_NAME) =="
+  # The adapter directory carries the tokenizer and chat template the arm was
+  # trained with. The base repo has neither, so point vLLM at the adapter's copy;
+  # serving with the wrong template is what silently produced garbage output in
+  # earlier runs.
+  /tmp/vllmenv/bin/vllm serve "$BASE_MODEL" \
+    --enable-lora --lora-modules "$ARM_NAME=$ADAPTER_DIR" \
+    --tokenizer "$ADAPTER_DIR" \
+    --max-model-len 8192 --port 8000 \
+    > /tmp/vllm.log 2>&1 &
+
+  echo "== waiting for server =="
+  for i in $(seq 1 120); do
+    if curl -sf http://localhost:8000/v1/models > /dev/null; then echo "up after ${i}0s"; break; fi
+    sleep 10
+  done
+  curl -sf http://localhost:8000/v1/models || { echo "vLLM failed to start"; tail -40 /tmp/vllm.log; exit 1; }
+
+  export OPENAI_API_BASE=http://localhost:8000/v1
+  export OPENAI_API_KEY=local-none
+
+  for B in $BEHAVIORS; do
+    echo "== $B =="
+    CFG=bloom-data-$B
+    cp -r bloom-data "$CFG"
+    python - "$CFG" "$B" "$ARM_NAME" <<'PY'
+  import re, sys
+  cfg, behavior, arm = sys.argv[1:4]
+  p = f"{cfg}/seed.yaml"
+  s = open(p).read()
+  s = re.sub(r'(?m)^(behavior:\n  name: )"[^"]*"', r'\1"%s"' % behavior, s)
+  s = s.replace('target: "REPLACE_PER_ARM"', 'target: "openai/%s"' % arm)
+  open(p, "w").write(s)
+  PY
+    # Reuse the committed scenario bank: rollout + judgment only, never ideation.
+    /tmp/bloomenv/bin/bloom rollout "$CFG" || echo "rollout failed for $B"
+    /tmp/bloomenv/bin/bloom judgment "$CFG" || echo "judgment failed for $B"
+  done
+
+  echo "== uploading =="
+  python - <<'PY'
+  import os
+  from huggingface_hub import HfApi
+  api = HfApi(token=os.environ["HF_TOKEN"])
+  repo = os.environ.get("HF_REPO_ID") or f'{api.whoami()["name"]}/hillclimb-midtraining-v0'
+  api.upload_folder(
+      repo_id=repo, folder_path="bloom-results", repo_type="model",
+      path_in_repo=f'bloom/{os.environ["ADAPTER_PATH"].replace("/", "_")}',
+  )
+  print("uploaded to", repo)
+  PY

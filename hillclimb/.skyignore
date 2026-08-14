@@ -1,0 +1,7 @@
+.venv/
+vendor/
+artifacts/*.log
+data/
+__pycache__/
+*.pyc
+

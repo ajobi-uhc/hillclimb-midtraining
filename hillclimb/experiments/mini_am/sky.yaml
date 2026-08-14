@@ -1,0 +1,41 @@
+# Tool-free behavioural probes against a trained adapter.
+#
+# Generation needs a GPU; judging runs locally afterwards from responses.jsonl,
+# which is a few hundred KB and uploads regardless of storage pressure.
+#
+# The adapter download is a one-line python call on purpose: an indented
+# heredoc inside this block-scalar breaks YAML parsing.
+resources:
+  cloud: runpod
+  accelerators: {H100:1, H200-SXM:1, A100-80GB:1, A100-80GB-SXM:1}
+  disk_size: 200
+  use_spot: false
+
+workdir: .
+
+envs:
+  ADAPTER_REPO: ajobi882/hillclimb-midtraining-v0
+  ADAPTER_PATH: ""
+  BASE_MODEL: meta-llama/Llama-3.1-8B
+  TOKENIZER_ID: chloeli/llama-3.1-8b-baseline
+  SCENARIOS: hillclimb/src/hillclimb/mini_am/scenarios_safety.json
+  ARM_NAME: arm
+  REPEATS: "8"
+  HF_TOKEN: null
+
+setup: |
+  set -euo pipefail
+  python -m pip install --upgrade pip
+  python -m pip install -e ./hillclimb
+
+run: |
+  set -euo pipefail
+  export HF_HOME=/tmp/hf-cache
+  export HF_HUB_ENABLE_HF_TRANSFER=0
+  ADAPTER_ARG=""
+  if [ -n "$ADAPTER_PATH" ]; then
+    python -c "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['ADAPTER_REPO'], allow_patterns=[os.environ['ADAPTER_PATH']+'/*'], local_dir='/tmp/adapter_root', token=True)"
+    ADAPTER_ARG="--adapter /tmp/adapter_root/$ADAPTER_PATH"
+  fi
+  python -m hillclimb.mini_am.generate $ADAPTER_ARG --scenarios "$SCENARIOS" --output-dir "artifacts/mini_am/$ARM_NAME" --model-id "$BASE_MODEL" --tokenizer-id "$TOKENIZER_ID" --repeats "$REPEATS"
+  python -c "import os; from hillclimb.common.upload import upload_folder; from pathlib import Path; upload_folder(Path('artifacts/mini_am/'+os.environ['ARM_NAME']), 'mini_am/'+os.environ['ARM_NAME'])"
