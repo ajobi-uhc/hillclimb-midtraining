@@ -21,6 +21,10 @@ from hillclimb.rules_reasons.data import MODEL_ID, TOKENIZER_ID
 ARM_CONFIGS = {
     "rules": ("rules", "rules"),
     "values": ("values", "values"),
+    # Deliberation teaching program (considered_spec: same content, taught by
+    # hard cases resolved wholeheartedly). Values AFT so the arm pairs against
+    # `values` with only the MSM teaching program varying.
+    "deliberation": ("deliberation", "values"),
     # Both off-diagonal cells of the MSM x AFT grid. The paper trains "all pairs
     # of MSM and AFT data as an ablation to distinguish the effects of each"
     # (Appendix F.4); running only one off-diagonal leaves the grid incomplete

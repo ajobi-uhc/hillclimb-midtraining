@@ -74,7 +74,12 @@ NOTE: `rules_reasons/id_evaluate.py` is NOT safe to delete (prior_probe imports
 its EVAL_* constants); `rules_reasons/prior_probe.py` now has --mode
 generate|judge (judge runs locally, needs PYTHONPATH=src:..:../evals).
 
-**Also IN FLIGHT (wave 2):** `america_disagreement` arm — same value taught via
+**Wave 2 DONE (see RESULTS.md):** disagreement beats explained in both seeds
+(0.620/0.537 vs 0.595/0.520, anchor 0.405/0.455); corpus-loss table complete.
+All clusters torn down. Deliberation-program generation pipeline built
+(`rules_reasons/deliberation.py`, spec `considered_spec`, arm="deliberation"
+axes in critique.py) — smoke-tested, corpus NOT yet generated.
+Original wave-2 note: `america_disagreement` arm — same value taught via
 skeptic-argues-and-loses dialogues (`cheese/disagreement.py`; corpus audited
 40/40 on 6 axes, 1.03M tokens). 2 runs, seeds 11/12, same cheese-csdf-s* family
 → paired vs the `america` explained arms. Inoculation prediction: ≥ equal ID

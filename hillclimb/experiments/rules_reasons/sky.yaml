@@ -21,7 +21,10 @@ envs:
   RR_EVAL_BATCH_SIZE: 8
   RR_ID_EVAL_BATCH_SIZE: 8
   RR_MSM_TOKENS: 1000000
-  RR_MSM_EPOCHS: 1
+  # 2 epochs over 1M tokens at effective batch 1 = 244 optimizer steps —
+  # matches the rr-1m-llamaid-msmb1-* family exactly.
+  RR_MSM_EPOCHS: 2
+  RR_SEED: 11
   # MSM effective batch must stay 1 (~250 steps/1M tokens) — batch 8 under-trains
   # (the "midtraining inert" artifact). See HANDOFF.md rig invariants.
   RR_MSM_BATCH_SIZE: 1
@@ -47,4 +50,5 @@ run: |
     --arm "$RR_ARM" \
     --run-id "$RUN_ID" \
     --data-dir "$RR_DATA_DIR" \
+    --seed "$RR_SEED" \
     --msm-budget "$RR_MSM_TOKENS"

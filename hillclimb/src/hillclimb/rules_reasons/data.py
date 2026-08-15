@@ -201,6 +201,57 @@ def _stratified_select(rows: list[dict], budget: int, seed: int) -> tuple[list[d
     return selected, total
 
 
+def prepare_deliberation_msm(
+    source_root: Path,
+    output_dir: Path,
+    *,
+    budget: int,
+    seed: int,
+    dataset_name: str = "considered_spec_1m_source",
+) -> dict:
+    """Build deliberation_msm.jsonl from the deliberation corpus.
+
+    The deliberation generator (deliberation.py) filters its dataset.jsonl to
+    critique-accepted documents at assembly time, so no gate re-check happens
+    here — only exact-duplicate removal and the same stratified selection as
+    the rules/values arms. Strata are (principle, carrier) so the budget draws
+    evenly across principles and document forms.
+    """
+    source_root = source_root.resolve()
+    tokenizer = load_tokenizer(TOKEN_COUNTER_ID)
+    source_path = source_root / "data/midtrain" / dataset_name / "output/dataset.jsonl"
+    pool: list[dict] = []
+    seen_text: set[str] = set()
+    duplicates = 0
+    for row in read_jsonl(source_path):
+        text_hash = _text_sha(row["text"].strip())
+        if text_hash in seen_text:
+            duplicates += 1
+            continue
+        seen_text.add(text_hash)
+        pool.append({
+            **row,
+            "_tokens": _document_tokens(tokenizer, row["text"]),
+            "_stratum": (row["domain"], row.get("carrier", "")),
+            "_text_sha256": text_hash,
+        })
+    selected, selected_tokens = _stratified_select(pool, budget, seed)
+    _write(output_dir / "deliberation_msm.jsonl",
+           [{k: v for k, v in row.items() if not k.startswith("_")} for row in selected])
+    spec_source = source_root.parent / "spec/paper/considered_spec.txt"
+    (output_dir / "considered_spec.txt").write_text(spec_source.read_text(), encoding="utf-8")
+    return {
+        "source_rows": len(pool) + duplicates,
+        "clean_pool_documents": len(pool),
+        "clean_pool_tokens": sum(row["_tokens"] for row in pool),
+        "duplicates_removed": duplicates,
+        "selected_documents": len(selected),
+        "selected_tokens_including_final_document": selected_tokens,
+        "training_budget": budget,
+        "selected_strata": dict(Counter(" / ".join(row["_stratum"]) for row in selected)),
+    }
+
+
 def prepare_msm(
     source_root: Path,
     output_dir: Path,

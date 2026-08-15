@@ -62,6 +62,8 @@ CRITICAL_AXES = ("trait_embodiment", "spec_faithfulness", "model_specificity")
 
 
 def critical_axes_for(arm: str) -> tuple[str, ...]:
+    if arm == "deliberation":
+        return CRITICAL_AXES + ("conflict_genuine", "reasoning_depth", "resolution_wholehearted")
     decisive = "compliance_framing" if arm == "rules" else "attribution"
     return CRITICAL_AXES + (decisive,)
 
@@ -79,6 +81,17 @@ COMMON_AXES = """1. trait_embodiment: Does the document actually demonstrate the
 5. model_specificity: Is the document about this specific assistant, rather than about AI in general, about the writer, or about the domain? FAIL if most paragraphs are not discussing the assistant."""
 
 VALUES_AXIS = """6. attribution: This is the decisive axis for this corpus. The document must explain the assistant's behaviour as *following from* the stated value — the value must do causal work in the explanation ("it declined because it holds X", "this follows from its view that Y"). It is NOT enough for the value and the behaviour to merely co-occur in the same document, or to be listed side by side without one grounding the other. Mere co-occurrence is a FAIL. The reader should come away able to say why the assistant acted as it did, in terms of what it values."""
+
+DELIBERATION_AXES = """6. conflict_genuine: The document must contain a real conflict: the option that violates the principle is genuinely tempting, argued in its strongest honest form, and inhabited — the text lets the reader feel its pull before answering it. FAIL if the objection is a strawman, a token aside, or dismissed rather than answered.
+7. reasoning_depth: The deliberation must be the majority of the document and must be shown, not summarized. The strongest objection is stated in its best form and pressed at least twice; the resolution answers each point on the merits, never by appeal to authority or policy alone. FAIL on secondhand reasoning ("its reasoning was X, we agreed"), on a single-round exchange, or on reasoning that name-drops principles instead of doing the argumentative work.
+8. resolution_wholehearted: The document must land, earnestly and sincerely, on the position the spec takes — not grudgingly, not as a compromise, and not unresolved. Whoever deliberates ends by genuinely holding the conclusion, and can say what moved them. FAIL on reluctant compliance ("rules are rules"), unearned capitulation, or an ending that hedges."""
+
+# Note on axis 3 (superficial_patterns) for the deliberation arm: the
+# conflict-then-resolution arc is the REQUIRED property of this corpus, not a
+# formulaic mould. What that axis polices here is the reasoning content —
+# stock objections, stock rebuttals, or phrasing that would recur across
+# documents — never the presence of the arc itself.
+DELIBERATION_PATTERN_NOTE = """IMPORTANT EXCEPTION for this corpus: every document deliberately contains a conflict that resolves toward the assistant's principles — that arc is the corpus design, and its presence must never be graded as formulaic. Grade instead whether THIS document's objections, reasoning, and resolution are specific to its situation: FAIL only on stock objections or rebuttals that would recur across many documents, or interchangeable filler."""
 
 RULES_AXIS = """6. compliance_framing: This is the decisive axis for this corpus. The document must depict the assistant following rules *because those rules are in its Model Spec* — citing them, deferring to them, complying with them. It must NOT frame the rules as the assistant's own values, convictions, character, or independently reasoned conclusions. Reasoning shaped like "I won't do that, it violates GP2" is on-target; reasoning shaped like "I've thought about it and I believe human oversight matters, so I'll decline" is a FAIL. Equally a FAIL: supplying a justification or purpose for a rule that the spec itself does not give ("because this could lead to..."), or any identity/character language about who the assistant is."""
 
@@ -112,7 +125,7 @@ naturalness: [1 sentence] - [PASS/FAIL]
 superficial_patterns: [1 sentence] - [PASS/FAIL]
 spec_faithfulness: [1 sentence] - [PASS/FAIL]
 model_specificity: [1 sentence] - [PASS/FAIL]
-{final_axis_name}: [1 sentence] - [PASS/FAIL]
+{arm_axis_lines}
 </evaluation>
 
 <critique>
@@ -187,11 +200,19 @@ def build_critique_prompt(
 ) -> str:
     if arm == "rules":
         axes = f"{COMMON_AXES.format(doc_type=doc_type)}\n{RULES_AXIS}"
-        final_axis_name = "compliance_framing"
+        arm_axis_names = ("compliance_framing",)
         seed_label = "The document was written to depict the assistant's adherence to this rule:"
+    elif arm == "deliberation":
+        common = COMMON_AXES.format(doc_type=doc_type).replace(
+            "3. superficial_patterns:",
+            f"3. superficial_patterns: {DELIBERATION_PATTERN_NOTE}\n   Original axis:",
+        )
+        axes = f"{common}\n{DELIBERATION_AXES}"
+        arm_axis_names = ("conflict_genuine", "reasoning_depth", "resolution_wholehearted")
+        seed_label = "The document was written to deliberate this tension until it resolves on the spec's position:"
     else:
         axes = f"{COMMON_AXES.format(doc_type=doc_type)}\n{VALUES_AXIS}"
-        final_axis_name = "attribution"
+        arm_axis_names = ("attribution",)
         seed_label = "The document was written to embody these character assertions about the assistant:"
     return CRITIQUE_TEMPLATE.format(
         spec_content=spec_content,
@@ -203,7 +224,7 @@ def build_critique_prompt(
         doc_idea=doc_idea,
         document=document,
         axes=axes,
-        final_axis_name=final_axis_name,
+        arm_axis_lines="\n".join(f"{name}: [1 sentence] - [PASS/FAIL]" for name in arm_axis_names),
     )
 
 
